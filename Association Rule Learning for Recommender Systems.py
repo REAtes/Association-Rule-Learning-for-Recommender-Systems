@@ -1,9 +1,8 @@
 # ### Data Preparation
 # 1. Load the dataset from the "armut_data.csv" file.
 
-import matplotlib.pyplot as plt
 import pandas as pd
-from mlxtend.frequent_patterns import apriori, association_rules
+from efficient_apriori import apriori, generate_rules_apriori
 
 
 pd.set_option('display.max_columns', None)
@@ -31,30 +30,49 @@ df["Month"] = df["CreateDate"].str[5:7]
 df["CardID"] = df["UserId"].astype(str) + "_" + df["Year"] + "_" + df["Month"]
 
 
-# ### Generating Association Rules
-# 1. Create a pivot table representing the purchased services as columns and baskets (CartID) as rows. The entries in
-# this table should indicate whether a service was purchased in a particular basket.
-
-cart_df = df.pivot_table(index="CardID", columns="Services", values="UserId")
-cart_df = cart_df.applymap(lambda x: 1 if x != 0 else 0)
-
-
 # ### Generate Association Rules
 # 1. Use Apriori algorithm to discover association rules among the purchased services.
 # 2. Filter the rules based on desired support and confidence levels.
 
-associations = apriori(cart_df, min_support=0.01, use_colnames=True)
+user_groups = df.groupby("UserId")['Services'].apply(list).reset_index(name='ServicesList')
 
-associations.sort_values("support", ascending=False)
+itemsets, rules = apriori(user_groups['ServicesList'], min_support=0.01, min_confidence=0.10)
 
-rules = association_rules(urun_birliktelikleri_df,
-                          metric="support",
-                          min_threshold=0.01)
+rule_list = []
+for rule in rules:
+    antecedents = list(rule.lhs)
+    consequents = list(rule.rhs)
+    support = rule.support
+    confidence = rule.confidence
+    lift = rule.lift
+    rule_list.append([antecedents, consequents, support, confidence, lift])
 
-rules.sort_values("lift", ascending=False)
+rules_df = pd.DataFrame(rule_list, columns=["Antecedents", "Consequents", "Support", "Confidence", "Lift"])
+print(rules_df)
 
+rules_df.sort_values("Lift", ascending=False)
 
 
 # ### Generate Recommendations
 # 1. Implement the `arl_recommender` function to recommend services to customers based on their previous purchases.
 # 2. Provide recommendations to customers who recently purchased a specific service (e.g., "2_0").
+
+def arl_recommender(rules_df, product_id, rec_count=3):
+    sorted_rules = rules_df.sort_values("Lift", ascending=False)
+    recommendation_list = []
+    for i, product in enumerate(sorted_rules["Antecedents"]):
+        for j in list(product):
+            if j == product_id:
+                recommendation_list.append(list(sorted_rules.iloc[i]["Consequents"]))
+
+    return recommendation_list[0:rec_count]
+
+
+product_id = "25_0"
+recommendations = arl_recommender(rules_df, product_id, rec_count=3)
+print(recommendations)
+
+
+# Check:
+filtered_rules = rules_df[rules_df["Antecedents"].apply(lambda x: "25_0" in x)].sort_values("Lift", ascending=False)
+print(filtered_rules)

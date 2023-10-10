@@ -26,9 +26,6 @@ The dataset consists of customer service usage records, including information ab
 2. Create a new date variable containing only the year and month information.
 3. Combine the `UserId` and the new date variable with "_" to create a unique basket identifier called `CartID`.
 
-### Generating Association Rules
-1. Create a pivot table representing the purchased services as rows and baskets (CartID) as columns. The entries in this table should indicate whether a service was purchased in a particular basket.
-
 ### Generate Association Rules
 1. Use Apriori algorithm to discover association rules among the purchased services.
 2. Filter the rules based on desired support and confidence levels.
